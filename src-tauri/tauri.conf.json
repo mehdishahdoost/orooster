@@ -26,7 +26,7 @@
         "label": "splash",
         "title": "ORooster",
         "url": "splash/index.html",
-        "width": 420,
+        "width": 600,
         "height": 380,
         "resizable": false,
         "decorations": false,
