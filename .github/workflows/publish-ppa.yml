@@ -109,16 +109,17 @@ jobs:
     - name: Update debian/changelog
       run: |
         # Update changelog with current version and date
-        cat > src-tauri/debian/changelog << EOF
-orooster ($VERSION-1) unstable; urgency=medium
-
-  * Release version $VERSION
-  * Built from Tauri application
-  * Native Linux desktop client for Ollama
-  * Automated PPA build from GitHub Actions
-
- -- WBH <wbh@example.com>  $(date -R)
-EOF
+        RELEASE_DATE=$(date -R)
+        printf '%s\n' \
+          "orooster ($VERSION-1) unstable; urgency=medium" \
+          "" \
+          "  * Release version $VERSION" \
+          "  * Built from Tauri application" \
+          "  * Native Linux desktop client for Ollama" \
+          "  * Automated PPA build from GitHub Actions" \
+          "" \
+          " -- WBH <wbh@example.com>  $RELEASE_DATE" \
+          > src-tauri/debian/changelog
         
     - name: Build Tauri application
       run: |
