@@ -1,0 +1,30 @@
+Source: orooster
+Section: utils
+Priority: optional
+Maintainer: WBH <wbh@example.com>
+Build-Depends: debhelper-compat (= 13), cargo, nodejs (>= 18), npm
+Standards-Version: 4.6.2
+Homepage: https://github.com/mehdishahdoost/orooster
+
+Package: orooster
+Architecture: any
+Depends: 
+  libwebkit2gtk-4.1-0,
+  libgtk-3-0,
+  libayatana-appindicator3-1,
+  ${shlibs:Depends},
+  ${misc:Depends}
+Description: A native Linux desktop client for Ollama
+ ORooster is a native Linux desktop client for Ollama. It provides a clean,
+ fast chat interface to interact with locally-running LLMs — no browser required.
+ .
+ Unlike web-based UIs, ORooster runs as a lightweight native app (~13 MB) with
+ system tray integration, streaming responses, and automatic dark/light theme support.
+ .
+ Features:
+  - Streaming chat with real-time token-by-token response rendering
+  - Model selector to switch between installed Ollama models
+  - Markdown rendering with code blocks and syntax highlighting
+  - System tray integration with minimize to tray functionality
+  - Dark/light theme that follows system preference automatically
+  - Connection status indicator showing Ollama daemon status
