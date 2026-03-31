@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.0)'
+        required: true
+        type: string
 
 env:
   CARGO_TERM_COLOR: always
@@ -99,8 +104,12 @@ jobs:
         
     - name: Extract version from tag
       run: |
-        # Extract version from git tag (remove 'v' prefix)
-        VERSION=${GITHUB_REF#refs/tags/v}
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          # Extract version from git tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+        fi
         # Upstream version is everything before the first hyphen (for orig tarball naming)
         UPSTREAM_VERSION=${VERSION%%-*}
         echo "VERSION=$VERSION" >> $GITHUB_ENV
