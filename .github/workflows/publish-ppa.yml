@@ -137,7 +137,7 @@ jobs:
         cp -r ../package*.json "$TEMP_SOURCE_DIR/"
         cp -r ../tsconfig*.json "$TEMP_SOURCE_DIR/"
         cp -r ../vite.config.ts "$TEMP_SOURCE_DIR/"
-        cp -r ../src-tauri" "$TEMP_SOURCE_DIR/"
+        cp -r ../src-tauri "$TEMP_SOURCE_DIR/"
         cp -r ../eslint.config.js "$TEMP_SOURCE_DIR/"
         
         # Remove build artifacts
