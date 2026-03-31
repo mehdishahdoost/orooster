@@ -100,22 +100,25 @@ jobs:
       run: |
         # Extract version from git tag (remove 'v' prefix)
         VERSION=${GITHUB_REF#refs/tags/v}
+        # Upstream version is everything before the first hyphen (for orig tarball naming)
+        UPSTREAM_VERSION=${VERSION%%-*}
         echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "Building version: $VERSION"
+        echo "UPSTREAM_VERSION=$UPSTREAM_VERSION" >> $GITHUB_ENV
+        echo "Building version: $VERSION (upstream: $UPSTREAM_VERSION)"
         
     - name: Update debian/changelog
       run: |
         # Update changelog with current version and date
         cat > src-tauri/debian/changelog << EOF
-        orooster ($VERSION-1) unstable; urgency=medium
-        
-          * Release version $VERSION
-          * Built from Tauri application
-          * Native Linux desktop client for Ollama
-          * Automated PPA build from GitHub Actions
-        
-         -- WBH <wbh@example.com>  $(date -R)
-        EOF
+orooster ($VERSION-1) unstable; urgency=medium
+
+  * Release version $VERSION
+  * Built from Tauri application
+  * Native Linux desktop client for Ollama
+  * Automated PPA build from GitHub Actions
+
+ -- WBH <wbh@example.com>  $(date -R)
+EOF
         
     - name: Build Tauri application
       run: |
@@ -125,8 +128,8 @@ jobs:
       run: |
         cd src-tauri
         
-        # Create orig tarball
-        TEMP_SOURCE_DIR="/tmp/orooster-$VERSION"
+        # Create orig tarball (named with upstream version only, no Debian revision)
+        TEMP_SOURCE_DIR="/tmp/orooster-$UPSTREAM_VERSION"
         rm -rf "$TEMP_SOURCE_DIR"
         mkdir -p "$TEMP_SOURCE_DIR"
         
@@ -145,29 +148,29 @@ jobs:
         rm -rf "$TEMP_SOURCE_DIR/src-tauri/target"
         rm -rf "$TEMP_SOURCE_DIR/dist"
         
-        # Create tar.gz
+        # Create tar.gz in parent of src-tauri (where debuild looks)
         cd /tmp
-        tar -czf "$GITHUB_WORKSPACE/src-tauri/orooster_$VERSION.orig.tar.gz" "orooster-$VERSION"
+        tar -czf "$GITHUB_WORKSPACE/orooster_$UPSTREAM_VERSION.orig.tar.gz" "orooster-$UPSTREAM_VERSION"
         rm -rf "$TEMP_SOURCE_DIR"
         
-        # Build source package
+        # Build source package (skip signing; handled in next step)
         cd "$GITHUB_WORKSPACE/src-tauri"
-        debuild -S -sa
+        debuild -S -sa -uc -us
         
     - name: Sign source package
       env:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       run: |
-        cd src-tauri
-        echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --debsign ../orooster_$VERSION-1_source.changes
+        CHANGES_FILE=$(ls orooster_$VERSION-1_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1_source.changes)
+        echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback debsign "$CHANGES_FILE"
         
     - name: Upload to Launchpad PPA
       env:
         PPA_NAME: ${{ secrets.PPA_NAME }}
       run: |
-        cd src-tauri
+        CHANGES_FILE=$(ls orooster_$VERSION-1_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1_source.changes)
         echo "Uploading to PPA: $PPA_NAME"
-        dput "$PPA_NAME" ../orooster_$VERSION-1_source.changes
+        dput "$PPA_NAME" "$CHANGES_FILE"
         
     - name: Notify on success
       run: |
@@ -180,7 +183,7 @@ jobs:
       with:
         name: debian-package-files
         path: |
-          src-tauri/*.dsc
-          src-tauri/*.tar.gz
-          src-tauri/*.changes
+          *.dsc
+          *.tar.gz
+          *.changes
         retention-days: 30
