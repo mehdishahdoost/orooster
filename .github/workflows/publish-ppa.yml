@@ -143,12 +143,6 @@ jobs:
         rm -rf "$BUILD_DIR"
         mkdir -p "$BUILD_DIR"
         
-        # For quilt format (3.0), dpkg-source needs:
-        # - Parent dir contains: orooster_<ver>.orig.tar.gz
-        # - Working dir is: orooster-<ver>/ with debian/ at its root
-        # Since our debian/ is inside src-tauri/, we restructure the tree
-        # so that the project root IS the package root with debian/ at top level.
-        
         SOURCE_DIR="$BUILD_DIR/orooster-$UPSTREAM_VERSION"
         mkdir -p "$SOURCE_DIR"
         
@@ -170,19 +164,24 @@ jobs:
         # Move debian/ from src-tauri/ to the package root
         mv "$SOURCE_DIR/src-tauri/debian" "$SOURCE_DIR/debian"
         
-        # Create orig tarball WITHOUT debian/
+        # Create orig tarball in BUILD_DIR (parent of SOURCE_DIR)
+        # The orig tarball uses upstream version only (no Debian revision)
         cd "$BUILD_DIR"
         tar -czf "orooster_$UPSTREAM_VERSION.orig.tar.gz" --exclude="orooster-$UPSTREAM_VERSION/debian" "orooster-$UPSTREAM_VERSION"
         
+        echo "=== Created orig tarball ==="
+        ls -la "orooster_$UPSTREAM_VERSION.orig.tar.gz"
+        
         # Build source package from the package root (where debian/ now lives)
+        # The orig tarball is in the parent directory (BUILD_DIR)
         cd "$SOURCE_DIR"
-        debuild -S -sa -d -uc -us
+        debuild -S -sa -uc -us
         
         # Copy generated files to workspace for signing and upload
-        cp "$BUILD_DIR"/orooster_* "$GITHUB_WORKSPACE/" 2>/dev/null || true
+        cp "$BUILD_DIR"/orooster_* "$GITHUB_WORKSPACE/"
         
         echo "=== Generated files ==="
-        ls -la "$GITHUB_WORKSPACE"/orooster_* 2>/dev/null || echo "No files found"
+        ls -la "$GITHUB_WORKSPACE"/orooster_*
         
     - name: Debug source package files
       run: |
