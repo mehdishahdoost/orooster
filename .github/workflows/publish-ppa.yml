@@ -123,7 +123,7 @@ jobs:
         # Update changelog with current version and date
         RELEASE_DATE=$(date -R)
         printf '%s\n' \
-          "orooster ($VERSION-2) questing; urgency=medium" \
+          "orooster ($VERSION-2) jammy; urgency=medium" \
           "" \
           "  * Release version $VERSION" \
           "  * Built from Tauri application" \
