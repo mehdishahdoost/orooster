@@ -175,10 +175,14 @@ jobs:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       run: |
         cd "$GITHUB_WORKSPACE"
+        
+        # Pre-seed the GPG agent with the passphrase so debsign can use it non-interactively
+        GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -1 | sed 's/.*\/\([A-F0-9]*\).*/\1/')
+        echo "$GPG_PASSPHRASE" | gpg --batch --pinentry-mode loopback --passphrase-fd 0 --sign --local-user "$GPG_KEY_ID" -o /dev/null /dev/null 2>/dev/null || true
+        
         CHANGES_FILE=$(ls orooster_$VERSION-1_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1_source.changes)
-        # Only sign the .changes file; the .dsc is referenced within it
-        echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --clearsign --armor --textmode "$CHANGES_FILE"
-        mv "${CHANGES_FILE}.asc" "$CHANGES_FILE"
+        # debsign signs both .dsc and .changes and updates checksums correctly
+        debsign -k"$GPG_KEY_ID" "$CHANGES_FILE"
         
     - name: Upload to Launchpad PPA
       env:
