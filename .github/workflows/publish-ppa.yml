@@ -186,7 +186,20 @@ jobs:
       run: |
         CHANGES_FILE=$(ls orooster_$VERSION-1_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1_source.changes)
         echo "Uploading to PPA: $PPA_NAME"
-        dput "$PPA_NAME" "$CHANGES_FILE"
+        # Retry upload up to 3 times in case of transient network issues
+        for attempt in 1 2 3; do
+          echo "Upload attempt $attempt/3"
+          if dput "$PPA_NAME" "$CHANGES_FILE"; then
+            echo "Upload successful"
+            break
+          elif [ $attempt -lt 3 ]; then
+            echo "Upload failed, retrying in 30 seconds..."
+            sleep 30
+          else
+            echo "Upload failed after 3 attempts"
+            exit 1
+          fi
+        done
         
     - name: Notify on success
       run: |
