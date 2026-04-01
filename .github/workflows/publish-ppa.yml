@@ -123,7 +123,7 @@ jobs:
         # Update changelog with current version and date
         RELEASE_DATE=$(date -R)
         printf '%s\n' \
-          "orooster ($VERSION-1) jammy; urgency=medium" \
+          "orooster ($VERSION-2) jammy; urgency=medium" \
           "" \
           "  * Release version $VERSION" \
           "  * Built from Tauri application" \
@@ -139,36 +139,65 @@ jobs:
         
     - name: Create source package
       run: |
-        cd src-tauri
+        BUILD_DIR="/tmp/ppa-build"
+        rm -rf "$BUILD_DIR"
+        mkdir -p "$BUILD_DIR"
         
-        # Create orig tarball (named with upstream version only, no Debian revision)
-        TEMP_SOURCE_DIR="/tmp/orooster-$UPSTREAM_VERSION"
-        rm -rf "$TEMP_SOURCE_DIR"
-        mkdir -p "$TEMP_SOURCE_DIR"
+        # For quilt format (3.0), dpkg-source needs:
+        # - Parent dir contains: orooster_<ver>.orig.tar.gz
+        # - Working dir is: orooster-<ver>/ with debian/ at its root
+        # Since our debian/ is inside src-tauri/, we restructure the tree
+        # so that the project root IS the package root with debian/ at top level.
         
-        # Copy source files
-        cp -r ../src "$TEMP_SOURCE_DIR/"
-        cp -r ../public "$TEMP_SOURCE_DIR/"
-        cp -r ../index.html "$TEMP_SOURCE_DIR/"
-        cp -r ../package*.json "$TEMP_SOURCE_DIR/"
-        cp -r ../tsconfig*.json "$TEMP_SOURCE_DIR/"
-        cp -r ../vite.config.ts "$TEMP_SOURCE_DIR/"
-        cp -r ../src-tauri "$TEMP_SOURCE_DIR/"
-        cp -r ../eslint.config.js "$TEMP_SOURCE_DIR/"
+        SOURCE_DIR="$BUILD_DIR/orooster-$UPSTREAM_VERSION"
+        mkdir -p "$SOURCE_DIR"
+        
+        # Copy project files into the source dir
+        cp -r src "$SOURCE_DIR/"
+        cp -r public "$SOURCE_DIR/"
+        cp index.html "$SOURCE_DIR/"
+        cp package*.json "$SOURCE_DIR/"
+        cp tsconfig*.json "$SOURCE_DIR/"
+        cp vite.config.ts "$SOURCE_DIR/"
+        cp -r src-tauri "$SOURCE_DIR/"
+        cp eslint.config.js "$SOURCE_DIR/"
         
         # Remove build artifacts
-        rm -rf "$TEMP_SOURCE_DIR/node_modules"
-        rm -rf "$TEMP_SOURCE_DIR/src-tauri/target"
-        rm -rf "$TEMP_SOURCE_DIR/dist"
+        rm -rf "$SOURCE_DIR/node_modules"
+        rm -rf "$SOURCE_DIR/src-tauri/target"
+        rm -rf "$SOURCE_DIR/dist"
         
-        # Create tar.gz in parent of src-tauri (where debuild looks)
-        cd /tmp
-        tar -czf "$GITHUB_WORKSPACE/orooster_$UPSTREAM_VERSION.orig.tar.gz" "orooster-$UPSTREAM_VERSION"
-        rm -rf "$TEMP_SOURCE_DIR"
+        # Move debian/ from src-tauri/ to the package root
+        mv "$SOURCE_DIR/src-tauri/debian" "$SOURCE_DIR/debian"
         
-        # Build source package (skip signing; handled in next step)
-        cd "$GITHUB_WORKSPACE/src-tauri"
-        debuild -S -sa -uc -us
+        # Create orig tarball WITHOUT debian/
+        cd "$BUILD_DIR"
+        tar -czf "orooster_$UPSTREAM_VERSION.orig.tar.gz" --exclude="orooster-$UPSTREAM_VERSION/debian" "orooster-$UPSTREAM_VERSION"
+        
+        # Build source package from the package root (where debian/ now lives)
+        cd "$SOURCE_DIR"
+        debuild -S -sa -d -uc -us
+        
+        # Copy generated files to workspace for signing and upload
+        cp "$BUILD_DIR"/orooster_* "$GITHUB_WORKSPACE/" 2>/dev/null || true
+        
+        echo "=== Generated files ==="
+        ls -la "$GITHUB_WORKSPACE"/orooster_* 2>/dev/null || echo "No files found"
+        
+    - name: Debug source package files
+      run: |
+        cd "$GITHUB_WORKSPACE"
+        echo "=== Files in workspace root ==="
+        ls -la orooster_* 2>/dev/null || echo "No orooster_* files found"
+        echo ""
+        echo "=== .changes file content ==="
+        cat orooster_*_source.changes 2>/dev/null || echo "No .changes file"
+        echo ""
+        echo "=== .dsc file content ==="
+        cat orooster_*.dsc 2>/dev/null || echo "No .dsc file"
+        echo ""
+        echo "=== GPG key info ==="
+        gpg --list-secret-keys --keyid-format LONG
         
     - name: Sign source package
       env:
@@ -176,19 +205,31 @@ jobs:
       run: |
         cd "$GITHUB_WORKSPACE"
         
-        # Pre-seed the GPG agent with the passphrase so debsign can use it non-interactively
+        # Get the GPG key ID
         GPG_KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep 'sec' | head -1 | sed 's/.*\/\([A-F0-9]*\).*/\1/')
+        echo "Using GPG key: $GPG_KEY_ID"
+        
+        # Pre-seed the GPG agent with the passphrase
         echo "$GPG_PASSPHRASE" | gpg --batch --pinentry-mode loopback --passphrase-fd 0 --sign --local-user "$GPG_KEY_ID" -o /dev/null /dev/null 2>/dev/null || true
         
-        CHANGES_FILE=$(ls orooster_$VERSION-1_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1_source.changes)
+        CHANGES_FILE=$(ls orooster_$VERSION-2_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-2_source.changes)
+        echo "Signing: $CHANGES_FILE"
+        
         # debsign signs both .dsc and .changes and updates checksums correctly
         debsign -k"$GPG_KEY_ID" "$CHANGES_FILE"
+        
+        echo ""
+        echo "=== Signed .changes file ==="
+        cat "$CHANGES_FILE"
+        echo ""
+        echo "=== Verify signature ==="
+        gpg --verify "$CHANGES_FILE" 2>&1 || true
         
     - name: Upload to Launchpad PPA
       env:
         PPA_NAME: ${{ secrets.PPA_NAME }}
       run: |
-        CHANGES_FILE=$(ls orooster_$VERSION-1_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1_source.changes)
+        CHANGES_FILE=$(ls orooster_$VERSION-2_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-2_source.changes)
         echo "Uploading to PPA: $PPA_NAME"
         # Retry upload up to 3 times in case of transient network issues
         for attempt in 1 2 3; do

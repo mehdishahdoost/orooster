@@ -10,21 +10,21 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 # Override build step to use Tauri
 override_dh_auto_build:
 	npm ci
-	npm run tauri build -- --bundles deb
+	npx tauri build --bundles deb
 
 # Install the built binary and desktop files
 override_dh_auto_install:
 	# Install the binary to /usr/bin/
-	install -D target/release/orooster debian/ollama-gui/usr/bin/orooster
+	install -D src-tauri/target/release/orooster debian/orooster/usr/bin/orooster
 	
 	# Install desktop file
-	install -D src-tauri/target/release/bundle/deb/orooster.desktop debian/ollama-gui/usr/share/applications/orooster.desktop
+	install -D src-tauri/target/release/bundle/deb/orooster.desktop debian/orooster/usr/share/applications/orooster.desktop
 	
 	# Install icons
-	install -D src-tauri/icons/32x32.png debian/ollama-gui/usr/share/icons/hicolor/32x32/apps/orooster.png
-	install -D src-tauri/icons/128x128.png debian/ollama-gui/usr/share/icons/hicolor/128x128/apps/orooster.png
-	install -D src-tauri/icons/256x256.png debian/ollama-gui/usr/share/icons/hicolor/256x256/apps/orooster.png
-	install -D src-tauri/icons/512x512.png debian/ollama-gui/usr/share/icons/hicolor/512x512/apps/orooster.png
+	install -D src-tauri/icons/32x32.png debian/orooster/usr/share/icons/hicolor/32x32/apps/orooster.png
+	install -D src-tauri/icons/128x128.png debian/orooster/usr/share/icons/hicolor/128x128/apps/orooster.png
+	install -D src-tauri/icons/256x256.png debian/orooster/usr/share/icons/hicolor/256x256/apps/orooster.png
+	install -D src-tauri/icons/512x512.png debian/orooster/usr/share/icons/hicolor/512x512/apps/orooster.png
 
 # Clean build artifacts
 override_dh_auto_clean:
