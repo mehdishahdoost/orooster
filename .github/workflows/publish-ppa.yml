@@ -172,6 +172,11 @@ jobs:
         echo "=== Created orig tarball ==="
         ls -la "orooster_$UPSTREAM_VERSION.orig.tar.gz"
         
+        # Create a symlink with full version for debuild compatibility
+        # debuild may look for orooster_<full-version>.orig.tar.gz
+        ln -sf "orooster_$UPSTREAM_VERSION.orig.tar.gz" "orooster_$VERSION.orig.tar.gz"
+        ls -la *.orig.tar.gz
+        
         # Build source package from the package root (where debian/ now lives)
         # The orig tarball is in the parent directory (BUILD_DIR)
         cd "$SOURCE_DIR"
