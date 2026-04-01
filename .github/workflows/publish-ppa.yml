@@ -176,12 +176,9 @@ jobs:
       run: |
         cd "$GITHUB_WORKSPACE"
         CHANGES_FILE=$(ls orooster_$VERSION-1_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1_source.changes)
-        DSC_FILE=$(ls orooster_$VERSION-1.dsc 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1.dsc)
-        # Sign both .dsc and .changes files
-        for file in "$DSC_FILE" "$CHANGES_FILE"; do
-          echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --clearsign --armor --textmode "$file"
-          mv "${file}.asc" "$file"
-        done
+        # Only sign the .changes file; the .dsc is referenced within it
+        echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback --clearsign --armor --textmode "$CHANGES_FILE"
+        mv "${CHANGES_FILE}.asc" "$CHANGES_FILE"
         
     - name: Upload to Launchpad PPA
       env:
