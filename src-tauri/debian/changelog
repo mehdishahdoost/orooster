@@ -4,4 +4,4 @@ orooster (0.1.0-1) jammy; urgency=medium
   * Built from Tauri application
   * Native Linux desktop client for Ollama
 
- -- WBH <wbh@example.com>  Tue, 31 Mar 2026 22:24:26 +0200
+ -- Mehdi Shahdoost <mhshdst@gmail.com>  Tue, 31 Mar 2026 22:24:26 +0200

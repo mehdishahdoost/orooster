@@ -1,7 +1,7 @@
 Source: orooster
 Section: utils
 Priority: optional
-Maintainer: WBH <wbh@example.com>
+Maintainer: Mehdi Shahdoost <mhshdst@gmail.com>
 Build-Depends: debhelper-compat (= 13), cargo, nodejs (>= 18), npm
 Standards-Version: 4.6.2
 Homepage: https://github.com/mehdishahdoost/orooster
