@@ -174,8 +174,10 @@ jobs:
       env:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
       run: |
+        cd "$GITHUB_WORKSPACE"
         CHANGES_FILE=$(ls orooster_$VERSION-1_source.changes 2>/dev/null || ls orooster_${UPSTREAM_VERSION}-1_source.changes)
-        echo "$GPG_PASSPHRASE" | gpg --batch --passphrase-fd 0 --pinentry-mode loopback debsign "$CHANGES_FILE"
+        # Sign the .changes file with debsign using the configured GPG key
+        debsign -p "echo $GPG_PASSPHRASE | gpg --batch --passphrase-fd 0 --pinentry-mode loopback" "$CHANGES_FILE"
         
     - name: Upload to Launchpad PPA
       env:
