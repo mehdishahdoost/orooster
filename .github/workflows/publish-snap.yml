@@ -114,8 +114,8 @@ jobs:
         echo "=== Extracted structure ==="
         find extracted/ -type f | head -20
         
-        # Copy binary (Tauri names it ORooster, not orooster)
-        cp extracted/usr/bin/ORooster snap/stage/usr/bin/orooster
+        # Copy binary (Tauri actually names it 'app', not ORooster)
+        cp extracted/usr/bin/app snap/stage/usr/bin/orooster
         cp src-tauri/icons/128x128.png snap/stage/usr/share/icons/hicolor/128x128/apps/orooster.png
         cp snap/gui/orooster.desktop snap/stage/usr/share/applications/orooster.desktop
 
