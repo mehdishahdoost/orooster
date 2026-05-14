@@ -105,8 +105,8 @@ jobs:
 
     - name: Build Snap package
       run: |
-        # Build the snap package using classic mode (required for many desktop apps)
-        snapcraft --use-lxd --verbose
+        # Build the snap package using LXD
+        snapcraft pack --use-lxd --verbose
 
     - name: Publish to Snap Store
       run: |
