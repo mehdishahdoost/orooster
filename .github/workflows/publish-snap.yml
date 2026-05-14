@@ -25,12 +25,33 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-and-publish:
-    runs-on: ubuntu-latest
-
+  build-snap:
+    # Build stage: compile everything and produce the .snap file
+    runs-on: ubuntu-22.04
+    container:
+      image: ubuntu:22.04
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Setup build environment in container
+      run: |
+        # Update package lists
+        apt-get update
+        
+        # Install essential build tools
+        apt-get install -y \
+          curl \
+          wget \
+          git \
+          build-essential \
+          sudo \
+          snapd
+        
+        # Enable and start snapd
+        systemctl enable snapd || true
+        systemctl start snapd || true
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -43,10 +64,21 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Install system dependencies
+    - name: Cache cargo dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          src-tauri/target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+
+    - name: Install Tauri system dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y \
+        apt-get update
+        apt-get install -y \
           pkg-config \
           libssl-dev \
           libglib2.0-dev \
@@ -57,65 +89,66 @@ jobs:
           libayatana-appindicator3-dev \
           librsvg2-dev
 
-    - name: Cache cargo registry
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/registry
-        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-registry-
-
-    - name: Cache cargo index
-      uses: actions/cache@v4
-      with:
-        path: ~/.cargo/git
-        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-index-
-
-    - name: Cache cargo build
-      uses: actions/cache@v4
-      with:
-        path: src-tauri/target
-        key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-build-
-
     - name: Install npm dependencies
       run: npm ci
 
-    - name: Extract version
+    - name: Build Tauri application
       run: |
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          VERSION="${{ github.event.inputs.version }}"
-          CHANNEL="${{ github.event.inputs.channel }}"
-        else
-          VERSION=${GITHUB_REF#refs/tags/v}
-          CHANNEL="stable"
-        fi
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
-        echo "CHANNEL=$CHANNEL" >> $GITHUB_ENV
-        echo "Building version: $VERSION for channel: $CHANNEL"
+        npx tauri build --bundles deb
+        
+    - name: Extract built artifacts
+      run: |
+        # Verify the .deb was built
+        ls -la src-tauri/target/release/bundle/deb/
+        
+        # Copy the binary and assets for snap staging
+        mkdir -p snap/stage/usr/bin
+        mkdir -p snap/stage/usr/share/applications
+        mkdir -p snap/stage/usr/share/icons/hicolor/128x128/apps
+        
+        # Extract .deb contents
+        dpkg-deb -x $(ls src-tauri/target/release/bundle/deb/*.deb | head -1) extracted/
+        
+        # Copy binary and icon
+        cp extracted/usr/bin/orooster snap/stage/usr/bin/orooster
+        cp src-tauri/icons/128x128.png snap/stage/usr/share/icons/hicolor/128x128/apps/orooster.png
+        cp snap/gui/orooster.desktop snap/stage/usr/share/applications/orooster.desktop
+
+    - name: Upload snap staging artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: orooster-snap-stage
+        path: snap/stage/
+        retention-days: 1
+
+  build-snap-package:
+    # Second stage: package the compiled artifacts into a .snap file
+    needs: build-snap
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Download built artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: orooster-snap-stage
+        path: snap/stage/
 
     - name: Install Snapcraft
       uses: samuelmeuli/action-snapcraft@v3
       with:
-        # SNAPCRAFT_TOKEN must be set as a GitHub repository secret
         snapcraft_token: ${{ secrets.SNAPCRAFT_TOKEN }}
 
     - name: Build Snap package
       run: |
-        # Build the snap package using LXD
-        snapcraft pack --use-lxd --verbose
+        snapcraft pack --verbose --destructive-mode
 
-    - name: Publish to Snap Store
+    - name: Verify Snap package
       run: |
-        # Find the built snap file
-        SNAP_FILE=$(ls orooster_*.snap | head -1)
-        echo "Publishing: $SNAP_FILE to channel: ${{ env.CHANNEL }}"
-        
-        # Upload to Snap Store
-        snapcraft upload --release=${{ env.CHANNEL }} "$SNAP_FILE"
+        ls -lh *.snap
+        unsquashfs -l *.snap | head -20
 
     - name: Upload Snap artifact
       uses: actions/upload-artifact@v4
@@ -124,7 +157,30 @@ jobs:
         path: orooster_*.snap
         retention-days: 30
 
+  publish:
+    # Final stage: publish to Snap Store
+    needs: [build-snap, build-snap-package]
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download Snap artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: orooster-snap
+
+    - name: Install Snapcraft
+      uses: samuelmeuli/action-snapcraft@v3
+      with:
+        snapcraft_token: ${{ secrets.SNAPCRAFT_TOKEN }}
+
+    - name: Publish to Snap Store
+      run: |
+        SNAP_FILE=$(ls orooster_*.snap | head -1)
+        echo "Publishing: $SNAP_FILE"
+        snapcraft upload --release=${{ github.event.inputs.channel || 'stable' }} "$SNAP_FILE"
+
     - name: Notify on success
       run: |
-        echo "✅ Successfully published ORooster v${{ env.VERSION }} to Snap Store!"
-        echo "📦 Snap will be available shortly on: https://snapcraft.io/orooster"
+        VERSION="${{ github.event.inputs.version || github.ref_name }}"
+        echo "✅ Successfully published ORooster to Snap Store!"
+        echo "📦 Available at: https://snapcraft.io/orooster"
