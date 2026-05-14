@@ -106,11 +106,16 @@ jobs:
         mkdir -p snap/stage/usr/share/applications
         mkdir -p snap/stage/usr/share/icons/hicolor/128x128/apps
         
-        # Extract .deb contents
-        dpkg-deb -x $(ls src-tauri/target/release/bundle/deb/*.deb | head -1) extracted/
+        # Extract .deb contents to inspect structure
+        DEB_FILE=$(ls src-tauri/target/release/bundle/deb/*.deb | head -1)
+        dpkg-deb -x "$DEB_FILE" extracted/
         
-        # Copy binary and icon
-        cp extracted/usr/bin/orooster snap/stage/usr/bin/orooster
+        # Debug: show what was extracted
+        echo "=== Extracted structure ==="
+        find extracted/ -type f | head -20
+        
+        # Copy binary (Tauri names it ORooster, not orooster)
+        cp extracted/usr/bin/ORooster snap/stage/usr/bin/orooster
         cp src-tauri/icons/128x128.png snap/stage/usr/share/icons/hicolor/128x128/apps/orooster.png
         cp snap/gui/orooster.desktop snap/stage/usr/share/applications/orooster.desktop
 
