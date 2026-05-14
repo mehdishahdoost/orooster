@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=ORooster
+Comment=A native Linux desktop client for Ollama
+Exec=orooster %U
+Icon=${SNAP}/usr/share/icons/hicolor/128x128/apps/orooster.png
+Type=Application
+Categories=Utility;Network;Chat;
+Terminal=false
+StartupNotify=true

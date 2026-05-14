@@ -12,6 +12,9 @@
   <img alt="License" src="https://img.shields.io/badge/license-MIT-blue.svg" />
   <img alt="Platform" src="https://img.shields.io/badge/platform-Linux-lightgrey.svg" />
   <img alt="Built with Tauri" src="https://img.shields.io/badge/built%20with-Tauri%20v2-orange.svg" />
+  <a href="https://snapcraft.io/orooster">
+    <img alt="Get it from the Snap Store" src="https://snapcraft.io/static/images/badges/en/snap-store-black.svg" width="150" />
+  </a>
 </p>
 
 ---
@@ -33,6 +36,7 @@ Unlike web-based UIs, ORooster runs as a lightweight native app (~13 MB) with sy
 - **Splash screen** — branded launch screen with ORooster logo
 - **Copy messages** — hover over assistant messages to copy content
 - **Lightweight** — ~13 MB binary, minimal resource usage
+- **Snap Store** — easy installation via snap
 
 ## Screenshots
 
@@ -44,6 +48,18 @@ Unlike web-based UIs, ORooster runs as a lightweight native app (~13 MB) with sy
 - At least one model pulled (e.g., `ollama pull llama3`)
 
 ## Installation
+
+### Snap Store (Recommended)
+
+The easiest way to install ORooster is via the [Snap Store](https://snapcraft.io/orooster):
+
+```bash
+sudo snap install orooster
+```
+
+Or install from [snapcraft.io](https://snapcraft.io/orooster) using the button below:
+
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/orooster)
 
 ### Pre-built packages
 

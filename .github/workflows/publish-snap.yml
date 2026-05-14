@@ -1,0 +1,130 @@
+name: Publish to Snap Store
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g. 0.1.0)'
+        required: true
+        type: string
+      channel:
+        description: 'Snap Store channel'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - candidate
+          - beta
+          - edge
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          pkg-config \
+          libssl-dev \
+          libglib2.0-dev \
+          libgtk-3-dev \
+          libjavascriptcoregtk-4.1-dev \
+          libsoup-3.0-dev \
+          libwebkit2gtk-4.1-dev \
+          libayatana-appindicator3-dev \
+          librsvg2-dev
+
+    - name: Cache cargo registry
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-registry-
+
+    - name: Cache cargo index
+      uses: actions/cache@v4
+      with:
+        path: ~/.cargo/git
+        key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-index-
+
+    - name: Cache cargo build
+      uses: actions/cache@v4
+      with:
+        path: src-tauri/target
+        key: ${{ runner.os }}-cargo-build-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-build-
+
+    - name: Install npm dependencies
+      run: npm ci
+
+    - name: Extract version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+          CHANNEL="${{ github.event.inputs.channel }}"
+        else
+          VERSION=${GITHUB_REF#refs/tags/v}
+          CHANNEL="stable"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "CHANNEL=$CHANNEL" >> $GITHUB_ENV
+        echo "Building version: $VERSION for channel: $CHANNEL"
+
+    - name: Install Snapcraft
+      uses: samuelmeuli/action-snapcraft@v3
+      with:
+        # SNAPCRAFT_TOKEN must be set as a GitHub repository secret
+        snapcraft_token: ${{ secrets.SNAPCRAFT_TOKEN }}
+
+    - name: Build Snap package
+      run: |
+        # Build the snap package using classic mode (required for many desktop apps)
+        snapcraft --use-lxd --verbose
+
+    - name: Publish to Snap Store
+      run: |
+        # Find the built snap file
+        SNAP_FILE=$(ls orooster_*.snap | head -1)
+        echo "Publishing: $SNAP_FILE to channel: ${{ env.CHANNEL }}"
+        
+        # Upload to Snap Store
+        snapcraft upload --release=${{ env.CHANNEL }} "$SNAP_FILE"
+
+    - name: Upload Snap artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: orooster-snap
+        path: orooster_*.snap
+        retention-days: 30
+
+    - name: Notify on success
+      run: |
+        echo "✅ Successfully published ORooster v${{ env.VERSION }} to Snap Store!"
+        echo "📦 Snap will be available shortly on: https://snapcraft.io/orooster"
