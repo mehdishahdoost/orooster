@@ -1,6 +1,6 @@
 name: orooster
 title: ORooster
-base: core24
+base: core22
 version: '0.1.0'
 summary: A native Linux desktop client for Ollama
 description: |
@@ -28,9 +28,8 @@ grade: stable
 confinement: strict
 
 platforms:
-  amd64:
-    build-on: amd64
-    build-for: amd64
+  build-on: [amd64]
+  build-for: [amd64]
 
 parts:
   orooster:
