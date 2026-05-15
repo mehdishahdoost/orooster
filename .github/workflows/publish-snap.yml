@@ -148,8 +148,6 @@ jobs:
 
     - name: Build Snap package
       run: |
-        # We need to update the base to match what we're building on
-        sed -i 's/base: core24/base: core22/g' snap/snapcraft.yaml
         snapcraft pack --verbose --destructive-mode
 
     - name: Verify Snap package
