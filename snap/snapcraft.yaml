@@ -1,100 +1,64 @@
 name: orooster
 title: ORooster
+type: app
 base: core22
 version: '0.1.0'
 summary: A native Linux desktop client for Ollama
+license: MIT
+source-code: https://github.com/mehdishahdoost/orooster
+contact: mhshdst@gmail.com
+
 description: |
   ORooster is a native Linux desktop client for Ollama. It provides a clean,
   fast chat interface to interact with locally-running LLMs — no browser required.
-
-  Unlike web-based UIs, ORooster runs as a lightweight native app (~13 MB) with
-  system tray integration, streaming responses, and automatic dark/light theme support.
-
-  Features:
-    - Streaming chat with real-time token-by-token response rendering
-    - Model selector to switch between installed Ollama models
-    - Markdown rendering with code blocks and syntax highlighting
-    - System tray integration with minimize to tray functionality
-    - Dark/light theme that follows system preference automatically
-    - Connection status indicator showing Ollama daemon status
-
-license: MIT
-source-code: https://github.com/mehdishahdoost/orooster
-issues: https://github.com/mehdishahdoost/orooster/issues
-contact: mhshdst@gmail.com
-website: https://github.com/mehdishahdoost/orooster
 
 grade: stable
 confinement: strict
 
 architectures:
-  - build-on: [amd64]
-    build-for: [amd64]
+  - amd64
 
 parts:
-  orooster:
+  orooster-bin:
+    plugin: dump
+    source: src-tauri/target/release/bundle/deb/ORooster_0.1.0_amd64.deb
+    source-type: deb
+    stage-packages:
+      - libayatana-appindicator3-1
+      - libwebpkit2gtk-4.1-0
+    prime:
+      - usr/bin/ORooster
+      - usr/share/applications/ORooster.desktop
+      - usr/share/icons/hicolor/*/apps/ORooster.png
+
+  # Rename binary for snap
+  setup:
     plugin: nil
-    source: .
+    after: [orooster-bin]
+    override-prime: |
+      prime_dir=${SNAPCRAFT_PRIME}
+      mkdir -p ${prime_dir}/usr/bin
+      cp ${prime_dir}/usr/bin/ORooster ${prime_dir}/usr/bin/orooster
+      # Fix desktop file name
+      if [ -f ${prime_dir}/usr/share/applications/ORooster.desktop ]; then
+        mv ${prime_dir}/usr/share/applications/ORooster.desktop ${prime_dir}/usr/share/applications/orooster.desktop
+      fi
+      # Fix icon references
+      if [ -d ${prime_dir}/usr/share/icons/hicolor/128x128/apps ]; then
+        cp ${prime_dir}/usr/share/icons/hicolor/128x128/apps/ORooster.png ${prime_dir}/usr/share/icons/hicolor/128x128/apps/orooster.png || true
+      fi
 
-    build-packages:
-      - build-essential
-      - curl
-      - pkg-config
-      - libssl-dev
-      - libglib2.0-dev
-      - libgtk-3-dev
-      - libjavascriptcoregtk-4.1-dev
-      - libsoup-3.0-dev
-      - libwebkit2gtk-4.1-dev
-      - libayatana-appindicator3-dev
-      - librsvg2-dev
-      - ca-certificates
-      - git
-
-    build-snaps:
-      - node/20/stable
-      - rustup
-
-    build-environment:
-      - CARGO_HOME: ${SNAPCRAFT_PART_BUILD}/.cargo
-      - RUSTUP_HOME: ${SNAPCRAFT_PART_BUILD}/.rustup
-      - PATH: ${SNAPCRAFT_PART_BUILD}/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:${PATH}
-
-    override-build: |
-      # Ensure rust is available via rustup
-      cargo --version
-      rustc --version
-
-      # Install npm dependencies
-      npm ci
-
-      # Build Tauri application (produces .deb in src-tauri/target/release/bundle/deb/)
-      npx tauri build --bundles deb
-
-      # Create installation directory structure
-      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/bin
-      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/share/applications
-      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/share/icons/hicolor/128x128/apps
-
-      # Extract the built .deb contents
-      DEB_FILE=$(ls ${SNAPCRAFT_PART_BUILD}/src-tauri/target/release/bundle/deb/*.deb | head -1)
-      dpkg-deb -x "${DEB_FILE}" extracted/
-
-      # Install binary and assets
-      cp extracted/usr/bin/orooster ${SNAPCRAFT_PART_INSTALL}/usr/bin/orooster
-      cp ${SNAPCRAFT_PART_BUILD}/src-tauri/icons/128x128.png ${SNAPCRAFT_PART_INSTALL}/usr/share/icons/hicolor/128x128/apps/orooster.png
-    
-  desktop:
+  desktop-file:
     plugin: dump
     source: snap/gui/
-    organize:
-      orooster.desktop: usr/share/applications/orooster.desktop
+    stage:
+      - orooster.desktop
 
 apps:
   orooster:
     command: usr/bin/orooster
-    common-id: com.mehdishahdoost.orooster
     desktop: usr/share/applications/orooster.desktop
+    common-id: com.mehdishahdoost.orooster
     plugs:
       - desktop
       - desktop-legacy
@@ -102,8 +66,6 @@ apps:
       - x11
       - unity7
       - network
-      - network-observe
       - home
     environment:
-      # Ensure the app can find its config directory
       XDG_CONFIG_HOME: ${SNAP_USER_COMMON}/.config
