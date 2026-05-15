@@ -97,10 +97,8 @@ jobs:
           path: src-tauri/target/release/bundle/deb/
 
       - name: Build Snap package
-        uses: snapcore/action-build@v1.2.0
+        uses: snapcore/action-build@v1
         id: snapcraft
-        with:
-          snapcraft-args: snap/snapcraft.yaml --build-for amd64
 
       - name: Verify Snap package
         run: |
