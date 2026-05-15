@@ -19,40 +19,37 @@ architectures:
   - amd64
 
 parts:
-  orooster-bin:
-    plugin: dump
-    source: src-tauri/target/release/bundle/deb/ORooster_0.1.0_amd64.deb
-    source-type: deb
-    stage-packages:
-      - libayatana-appindicator3-1
-      - libwebpkit2gtk-4.1-0
-    prime:
-      - usr/bin/ORooster
-      - usr/share/applications/ORooster.desktop
-      - usr/share/icons/hicolor/*/apps/ORooster.png
-
-  # Rename binary for snap
-  setup:
+  orooster:
+    # Install directly from the pre-built .deb artifact
     plugin: nil
-    after: [orooster-bin]
-    override-prime: |
-      prime_dir=${SNAPCRAFT_PRIME}
-      mkdir -p ${prime_dir}/usr/bin
-      cp ${prime_dir}/usr/bin/ORooster ${prime_dir}/usr/bin/orooster
-      # Fix desktop file name
-      if [ -f ${prime_dir}/usr/share/applications/ORooster.desktop ]; then
-        mv ${prime_dir}/usr/share/applications/ORooster.desktop ${prime_dir}/usr/share/applications/orooster.desktop
+    source: .
+    override-build: |
+      set -e
+      # The .deb artifact was downloaded by the CI from a previous job
+      # It's expected at this relative path inside the LXD container
+      DEB_FILE="${SNAPCRAFT_PART_BUILD}/src-tauri/target/release/bundle/deb/ORooster_0.1.0_amd64.deb"
+      
+      if [ ! -f "$DEB_FILE" ]; then
+        echo "ERROR: .deb file not found at: $DEB_FILE"
+        echo "Contents of bundle/deb/:"
+        ls -la ${SNAPCRAFT_PART_BUILD}/src-tauri/target/release/bundle/deb/ || true
+        exit 1
       fi
-      # Fix icon references
-      if [ -d ${prime_dir}/usr/share/icons/hicolor/128x128/apps ]; then
-        cp ${prime_dir}/usr/share/icons/hicolor/128x128/apps/ORooster.png ${prime_dir}/usr/share/icons/hicolor/128x128/apps/orooster.png || true
-      fi
-
-  desktop-file:
-    plugin: dump
-    source: snap/gui/
-    stage:
-      - orooster.desktop
+      
+      echo "Found .deb: $DEB_FILE"
+      dpkg-deb -x "$DEB_FILE" extracted/
+      
+      # Install to final location
+      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/bin
+      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/share/applications
+      mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/share/icons/hicolor/128x128/apps
+      
+      cp extracted/usr/bin/ORooster ${SNAPCRAFT_PART_INSTALL}/usr/bin/orooster
+      cp ${SNAPCRAFT_PART_BUILD}/snap/gui/orooster.desktop ${SNAPCRAFT_PART_INSTALL}/usr/share/applications/orooster.desktop
+      cp ${SNAPCRAFT_PART_BUILD}/src-tauri/icons/128x128.png ${SNAPCRAFT_PART_INSTALL}/usr/share/icons/hicolor/128x128/apps/orooster.png
+      
+      # Pull in any needed libraries from the .deb dependencies
+      # (webgtk, appindicator, etc. are already in base/core22 or staged)
 
 apps:
   orooster:
