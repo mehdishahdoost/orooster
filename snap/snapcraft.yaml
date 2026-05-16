@@ -2,6 +2,7 @@ name: orooster
 title: ORooster
 type: app
 base: core22
+version: latest
 summary: A native Linux desktop client for Ollama
 license: MIT
 source-code: https://github.com/mehdishahdoost/orooster
