@@ -125,7 +125,7 @@ jobs:
       - name: Publish to Snap Store
         uses: snapcore/action-publish@v1
         with:
-          snap: '*.snap'
+           snap: orooster_*.snap
           release: ${{ github.event.inputs.channel || 'stable' }}
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_TOKEN }}
