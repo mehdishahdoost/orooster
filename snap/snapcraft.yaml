@@ -2,7 +2,6 @@ name: orooster
 title: ORooster
 type: app
 base: core22
-version: '0.1.0'
 summary: A native Linux desktop client for Ollama
 license: MIT
 source-code: https://github.com/mehdishahdoost/orooster
@@ -20,36 +19,57 @@ architectures:
 
 parts:
   orooster:
-    # Install directly from the pre-built .deb artifact
     plugin: nil
     source: .
     override-build: |
       set -e
-      # The .deb artifact was downloaded by the CI from a previous job
-      # It's expected at this relative path inside the LXD container
+      
       DEB_FILE="${SNAPCRAFT_PART_BUILD}/src-tauri/target/release/bundle/deb/ORooster_0.1.0_amd64.deb"
       
       if [ ! -f "$DEB_FILE" ]; then
         echo "ERROR: .deb file not found at: $DEB_FILE"
         echo "Contents of bundle/deb/:"
         ls -la ${SNAPCRAFT_PART_BUILD}/src-tauri/target/release/bundle/deb/ || true
+        echo "Contents of the part build dir:"
+        find ${SNAPCRAFT_PART_BUILD} -maxdepth 3 || true
         exit 1
       fi
       
       echo "Found .deb: $DEB_FILE"
       dpkg-deb -x "$DEB_FILE" extracted/
       
-      # Install to final location
+      # DEBUG: Show what was extracted
+      echo "=== Extracted contents ==="
+      find extracted/ -type f | head -30
+      
+      # Create installation directories
       mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/bin
       mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/share/applications
       mkdir -p ${SNAPCRAFT_PART_INSTALL}/usr/share/icons/hicolor/128x128/apps
       
-      cp extracted/usr/bin/ORooster ${SNAPCRAFT_PART_INSTALL}/usr/bin/orooster
+      # DEBUG: Show exact contents of bin dir
+      echo "=== Contents of extracted/usr/bin/ ==="
+      ls -la extracted/usr/bin/ || true
+      
+      # Copy and rename binary (Tauri names it 'app')
+      if [ -f "extracted/usr/bin/app" ]; then
+        cp extracted/usr/bin/app ${SNAPCRAFT_PART_INSTALL}/usr/bin/orooster
+      elif [ -f "extracted/usr/bin/ORooster" ]; then
+        cp extracted/usr/bin/ORooster ${SNAPCRAFT_PART_INSTALL}/usr/bin/orooster
+      else
+        echo "ERROR: Could not find binary in .deb"
+        find extracted/ -type f | head -20
+        exit 1
+      fi
+      
+      # Copy desktop file
       cp ${SNAPCRAFT_PART_BUILD}/snap/gui/orooster.desktop ${SNAPCRAFT_PART_INSTALL}/usr/share/applications/orooster.desktop
+      
+      # Copy icon
       cp ${SNAPCRAFT_PART_BUILD}/src-tauri/icons/128x128.png ${SNAPCRAFT_PART_INSTALL}/usr/share/icons/hicolor/128x128/apps/orooster.png
       
-      # Pull in any needed libraries from the .deb dependencies
-      # (webgtk, appindicator, etc. are already in base/core22 or staged)
+      echo "=== Install directory contents ==="
+      find ${SNAPCRAFT_PART_INSTALL} -type f
 
 apps:
   orooster:
