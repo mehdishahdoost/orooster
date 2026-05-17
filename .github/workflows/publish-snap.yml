@@ -109,7 +109,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: orooster-snap
-          path: .
           path: '*.snap'
           retention-days: 30
 
